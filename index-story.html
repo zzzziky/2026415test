@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PROJECT: SINGULARITY // Year 2087</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        :root {
+            --neon-cyan: #00f0ff;
+            --neon-pink: #ff00a0;
+            --neon-amber: #ffaa00;
+            --alert-red: #ff3333;
+            --dark-bg: #030305;
+            --panel-bg: rgba(0, 20, 30, 0.7);
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--dark-bg);
+            font-family: "Rajdhani", sans-serif;
+            color: #fff;
+            touch-action: none;
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* CRT Effects */
+        .scanlines {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 100;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.2) 2px,
+                rgba(0, 0, 0, 0.2) 4px
+            );
+            opacity: 0.5;
+        }
+
+        .crt-flicker {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 101;
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.3) 100%);
+            animation: flicker 0.12s infinite;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.96; }
+            50% { opacity: 1; }
+            100% { opacity: 0.98; }
+        }
+
+        /* Canvas */
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* ===== BOOT SEQUENCE ===== */
+        .boot-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--dark-bg);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 20px;
+            font-family: "Share Tech Mono", monospace;
+            transition: opacity 1s, visibility 1s;
+        }
+
+        @media (min-width: 768px) {
+            .boot-overlay { padding: 60px; }
+        }
+
+        .boot-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .boot-header {
+            border-bottom: 1px solid var(--neon-cyan);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .boot-header { padding-bottom: 20px; margin-bottom: 30px; }
+        }
+
+        .boot-title {
+            font-family: "Orbitron", sans-serif;
+            font-size: 16px;
+            letter-spacing: 4px;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 20px var(--neon-cyan);
+        }
+
+        @media (min-width: 768px) {
+            .boot-title { font-size: 24px; letter-spacing: 8px; }
+        }
+
+        .boot-subtitle {
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            margin-top: 6px;
+            letter-spacing: 2px;
+        }
+
+        @media (min-width: 768px) {
+            .boot-subtitle { font-size: 12px; letter-spacing: 4px; margin-top: 8px; }
+        }
+
+        .boot-log {
+            flex: 1;
+            overflow: hidden;
+            font-size: 11px;
+            line-height: 1.6;
+            color: rgba(255,255,255,0.7);
+        }
+
+        @media (min-width: 768px) {
+            .boot-log { font-size: 13px; line-height: 1.8; }
+        }
+
+        .boot-log-line {
+            opacity: 0;
+            animation: typeIn 0.1s forwards;
+            margin-bottom: 4px;
+        }
+
+        @keyframes typeIn {
+            to { opacity: 1; }
+        }
+
+        .boot-log-line.error { color: var(--alert-red); }
+        .boot-log-line.success { color: var(--neon-cyan); }
+        .boot-log-line.warning { color: var(--neon-amber); }
+
+        .boot-timestamp {
+            color: rgba(255,255,255,0.4);
+            margin-right: 10px;
+        }
+
+        .boot-progress-container {
+            margin-top: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .boot-progress-container { margin-top: 30px; }
+        }
+
+        .boot-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .boot-progress-bar {
+            height: 2px;
+            background: rgba(0, 240, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+            .boot-progress-bar { height: 3px; }
+        }
+
+        .boot-progress-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink));
+            box-shadow: 0 0 20px var(--neon-cyan);
+            transition: width 0.3s;
+        }
+
+        .boot-skip {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 2px;
+            animation: blink 1s infinite;
+        }
+
+        @media (min-width: 768px) {
+            .boot-skip { bottom: 60px; right: 60px; font-size: 11px; }
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        /* ===== MAIN INTERFACE ===== */
+        .hud {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
+            padding: 15px;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 10px;
+        }
+
+        @media (min-width: 768px) {
+            .hud { padding: 40px; gap: 20px; }
+        }
+
+        .hud > * { pointer-events: auto; }
+
+        /* Top Section */
+        .hud-top {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: start;
+            gap: 15px;
+        }
+
+        @media (min-width: 768px) {
+            .hud-top { grid-template-columns: 1fr auto 1fr; gap: 40px; }
+        }
+
+        /* Left: Identity */
+        .identity-block {
+            position: relative;
+            padding-left: 12px;
+            border-left: 2px solid var(--neon-cyan);
+        }
+
+        @media (min-width: 768px) {
+            .identity-block { padding-left: 20px; border-left-width: 3px; }
+        }
+
+        .identity-class {
+            font-size: 8px;
+            letter-spacing: 2px;
+            color: var(--neon-cyan);
+            margin-bottom: 2px;
+        }
+
+        @media (min-width: 768px) {
+            .identity-class { font-size: 10px; letter-spacing: 4px; margin-bottom: 5px; }
+        }
+
+        .identity-name {
+            font-family: "Orbitron", sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 3px;
+        }
+
+        @media (min-width: 768px) {
+            .identity-name { font-size: 20px; letter-spacing: 6px; }
+        }
+
+        .identity-name span {
+            color: var(--neon-cyan);
+        }
+
+        .identity-tagline {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .identity-tagline {
+                display: block;
+                font-size: 11px;
+                color: rgba(255,255,255,0.5);
+                margin-top: 8px;
+                letter-spacing: 2px;
+            }
+        }
+
+        /* Center: Date Time - Hidden on mobile */
+        .datetime-block {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .datetime-block {
+                display: block;
+                text-align: center;
+            }
+
+            .datetime-year {
+                font-family: "Orbitron", sans-serif;
+                font-size: 48px;
+                font-weight: 900;
+                color: rgba(255,255,255,0.1);
+                letter-spacing: 20px;
+                line-height: 1;
+            }
+
+            .datetime-now {
+                font-family: "Share Tech Mono", monospace;
+                font-size: 14px;
+                color: var(--neon-cyan);
+                letter-spacing: 4px;
+                margin-top: -10px;
+            }
+        }
+
+        /* Right: System Status */
+        .system-block {
+            text-align: right;
+        }
+
+        .system-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 10px;
+        }
+
+        @media (min-width: 768px) {
+            .system-row { gap: 12px; margin-bottom: 10px; font-size: 12px; }
+        }
+
+        .system-label {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .system-label {
+                display: inline;
+                color: rgba(255,255,255,0.4);
+                letter-spacing: 2px;
+            }
+        }
+
+        .system-value {
+            font-family: "Share Tech Mono", monospace;
+            color: var(--neon-cyan);
+            min-width: 50px;
+        }
+
+        @media (min-width: 768px) {
+            .system-value { min-width: 80px; }
+        }
+
+        .system-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+            animation: pulse 2s infinite;
+        }
+
+        @media (min-width: 768px) {
+            .system-indicator { width: 8px; height: 8px; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Story Terminal - Hidden on mobile */
+        .story-terminal {
+            display: none;
+        }
+
+        @media (min-width: 1024px) {
+            .story-terminal {
+                display: flex;
+                position: absolute;
+                left: 40px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 380px;
+                background: var(--panel-bg);
+                border: 1px solid rgba(0, 240, 255, 0.2);
+                backdrop-filter: blur(10px);
+                padding: 25px;
+                max-height: 50vh;
+                flex-direction: column;
+            }
+
+            .terminal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            }
+
+            .terminal-title {
+                font-family: "Orbitron", sans-serif;
+                font-size: 11px;
+                letter-spacing: 3px;
+                color: var(--neon-cyan);
+            }
+
+            .terminal-status {
+                font-size: 10px;
+                color: var(--neon-amber);
+                letter-spacing: 2px;
+            }
+
+            .terminal-status::before {
+                content: '● ';
+            }
+
+            .terminal-content {
+                flex: 1;
+                overflow-y: auto;
+                font-family: "Share Tech Mono", monospace;
+                font-size: 12px;
+                line-height: 1.9;
+                color: rgba(255,255,255,0.8);
+            }
+
+            .terminal-content::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            .terminal-content::-webkit-scrollbar-thumb {
+                background: var(--neon-cyan);
+            }
+
+            .terminal-line {
+                margin-bottom: 12px;
+                padding-left: 15px;
+                border-left: 2px solid transparent;
+                transition: all 0.3s;
+            }
+
+            .terminal-line.active {
+                border-left-color: var(--neon-cyan);
+                color: #fff;
+            }
+
+            .terminal-line.highlight {
+                color: var(--neon-amber);
+            }
+
+            .terminal-input {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid rgba(0, 240, 255, 0.2);
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .terminal-prompt {
+                color: var(--neon-cyan);
+                font-family: "Share Tech Mono", monospace;
+            }
+
+            .terminal-cursor {
+                width: 10px;
+                height: 18px;
+                background: var(--neon-cyan);
+                animation: cursor-blink 0.8s infinite;
+            }
+
+            @keyframes cursor-blink {
+                0%, 50% { opacity: 1; }
+                51%, 100% { opacity: 0; }
+            }
+        }
+
+        /* Scanner Panel - Hidden on mobile */
+        .scanner-panel {
+            display: none;
+        }
+
+        @media (min-width: 1024px) {
+            .scanner-panel {
+                display: block;
+                position: absolute;
+                right: 40px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 200px;
+                text-align: right;
+            }
+
+            .scanner-title {
+                font-size: 10px;
+                letter-spacing: 3px;
+                color: rgba(255,255,255,0.4);
+                margin-bottom: 20px;
+            }
+
+            .scanner-ring {
+                width: 180px;
+                height: 180px;
+                margin-left: auto;
+                position: relative;
+            }
+
+            .scanner-ring svg {
+                width: 100%;
+                height: 100%;
+                animation: rotate 20s linear infinite;
+            }
+
+            @keyframes rotate {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+
+            .scanner-data {
+                margin-top: 20px;
+                font-family: "Share Tech Mono", monospace;
+                font-size: 11px;
+                line-height: 2;
+            }
+
+            .scanner-data-row {
+                display: flex;
+                justify-content: flex-end;
+                gap: 15px;
+            }
+
+            .scanner-data-label {
+                color: rgba(255,255,255,0.4);
+            }
+
+            .scanner-data-value {
+                color: var(--neon-cyan);
+                min-width: 60px;
+            }
+        }
+
+        /* Bottom Controls */
+        .hud-bottom {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (min-width: 768px) {
+            .hud-bottom { gap: 30px; }
+        }
+
+        .control-unit {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        @media (min-width: 768px) {
+            .control-unit { gap: 10px; }
+        }
+
+        .control-label {
+            font-size: 8px;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+        }
+
+        @media (min-width: 768px) {
+            .control-label { font-size: 9px; letter-spacing: 3px; }
+        }
+
+        .hud-button {
+            font-family: "Orbitron", sans-serif;
+            font-size: 9px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 8px 16px;
+            background: rgba(0, 240, 255, 0.05);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: var(--neon-cyan);
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        @media (min-width: 768px) {
+            .hud-button {
+                font-size: 10px;
+                letter-spacing: 2px;
+                padding: 12px 24px;
+            }
+        }
+
+        .hud-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .hud-button:hover::before {
+            left: 100%;
+        }
+
+        .hud-button:hover {
+            background: rgba(0, 240, 255, 0.15);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+        }
+
+        .hud-button.active {
+            background: rgba(0, 240, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+        }
+
+        /* Audio visualizer */
+        .audio-unit {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        @media (min-width: 768px) {
+            .audio-unit { gap: 15px; padding: 10px 20px; }
+        }
+
+        .viz-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .viz-bars { gap: 3px; height: 25px; }
+        }
+
+        .viz-bar {
+            width: 3px;
+            background: var(--neon-cyan);
+            opacity: 0.7;
+            transition: height 0.1s;
+        }
+
+        @media (min-width: 768px) {
+            .viz-bar { width: 4px; }
+        }
+
+        .viz-bar:nth-child(1) { height: 30%; animation: v1 0.4s infinite; }
+        .viz-bar:nth-child(2) { height: 60%; animation: v2 0.3s infinite; }
+        .viz-bar:nth-child(3) { height: 45%; animation: v3 0.5s infinite; }
+        .viz-bar:nth-child(4) { height: 80%; animation: v4 0.35s infinite; }
+        .viz-bar:nth-child(5) { height: 55%; animation: v5 0.45s infinite; }
+
+        @keyframes v1 { 0%,100%{height:30%} 50%{height:70%} }
+        @keyframes v2 { 0%,100%{height:60%} 50%{height:30%} }
+        @keyframes v3 { 0%,100%{height:45%} 50%{height:85%} }
+        @keyframes v4 { 0%,100%{height:80%} 50%{height:40%} }
+        @keyframes v5 { 0%,100%{height:55%} 50%{height:90%} }
+
+        .viz-bars.paused .viz-bar {
+            animation: none;
+            height: 15%;
+            opacity: 0.3;
+        }
+
+        /* Corner decorations - Hidden on mobile */
+        .corner-deco {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .corner-deco {
+                display: block;
+                position: fixed;
+                width: 60px;
+                height: 60px;
+                border: 2px solid rgba(0, 240, 255, 0.3);
+                z-index: 60;
+                pointer-events: none;
+            }
+
+            .corner-tl { top: 30px; left: 30px; border-right: none; border-bottom: none; }
+            .corner-tr { top: 30px; right: 30px; border-left: none; border-bottom: none; }
+            .corner-bl { bottom: 30px; left: 30px; border-right: none; border-top: none; }
+            .corner-br { bottom: 30px; right: 30px; border-left: none; border-top: none; }
+        }
+
+        /* Story choice overlay */
+        .choice-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        @media (min-width: 768px) {
+            .choice-overlay { gap: 30px; }
+        }
+
+        .choice-overlay.active {
+            display: flex;
+        }
+
+        .choice-title {
+            font-family: "Orbitron", sans-serif;
+            font-size: 14px;
+            letter-spacing: 3px;
+            color: var(--neon-cyan);
+        }
+
+        @media (min-width: 768px) {
+            .choice-title { font-size: 18px; letter-spacing: 6px; }
+        }
+
+        .choice-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        @media (min-width: 768px) {
+            .choice-buttons {
+                flex-direction: row;
+                gap: 20px;
+                max-width: none;
+            }
+        }
+
+        .choice-btn {
+            font-family: "Rajdhani", sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            padding: 15px 30px;
+            background: transparent;
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        @media (min-width: 768px) {
+            .choice-btn { font-size: 14px; padding: 20px 40px; }
+        }
+
+        .choice-btn:hover {
+            background: var(--neon-cyan);
+            color: #000;
+        }
+
+        /* Mobile story indicator */
+        .mobile-story-indicator {
+            position: fixed;
+            top: 50%;
+            left: 10px;
+            transform: translateY(-50%);
+            z-index: 55;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        @media (min-width: 1024px) {
+            .mobile-story-indicator { display: none; }
+        }
+
+        .story-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(0, 240, 255, 0.3);
+            transition: all 0.3s;
+        }
+
+        .story-dot.active {
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+    </style>
+</head>
+<body>
+    <!-- Boot Sequence -->
+    <div class="boot-overlay" id="boot">
+        <div class="boot-header">
+            <div class="boot-title">PROJECT: SINGULARITY</div>
+            <div class="boot-subtitle">QUANTUM CONSCIOUSNESS INTERFACE // YEAR 2087</div>
+        </div>
+        <div class="boot-log" id="boot-log"></div>
+        <div class="boot-progress-container">
+            <div class="boot-progress-label">
+                <span>SYSTEM INITIALIZATION</span>
+                <span id="boot-percent">0%</span>
+            </div>
+            <div class="boot-progress-bar">
+                <div class="boot-progress-fill" id="boot-fill"></div>
+            </div>
+        </div>
+        <div class="boot-skip">[ TAP TO SKIP ]</div>
+    </div>
+
+    <!-- Choice Overlay -->
+    <div class="choice-overlay" id="choice-overlay">
+        <div class="choice-title">THE SINGULARITY AWAITS</div>
+        <div class="choice-buttons">
+            <button class="choice-btn" onclick="makeChoice('merge')">MERGE CONSCIOUSNESS</button>
+            <button class="choice-btn" onclick="makeChoice('observe')">REMAIN OBSERVER</button>
+        </div>
+    </div>
+
+    <!-- Mobile Story Indicator -->
+    <div class="mobile-story-indicator" id="story-indicator">
+        <div class="story-dot active"></div>
+        <div class="story-dot"></div>
+        <div class="story-dot"></div>
+        <div class="story-dot"></div>
+        <div class="story-dot"></div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app">
+        <div class="scanlines"></div>
+        <div class="crt-flicker"></div>
+        <canvas id="canvas"></canvas>
+
+        <!-- Corner Decorations -->
+        <div class="corner-deco corner-tl"></div>
+        <div class="corner-deco corner-tr"></div>
+        <div class="corner-deco corner-bl"></div>
+        <div class="corner-deco corner-br"></div>
+
+        <!-- HUD -->
+        <div class="hud">
+            <!-- Top -->
+            <div class="hud-top">
+                <div class="identity-block">
+                    <div class="identity-class">OPERATOR CLASS</div>
+                    <div class="identity-name">DR.<span>YUEZHANG</span>.OSS</div>
+                    <div class="identity-tagline">QUANTUM SYSTEMS ARCHITECT // SECTOR 7</div>
+                </div>
+                <div class="datetime-block">
+                    <div class="datetime-year">2087</div>
+                    <div class="datetime-now" id="datetime">00.00.00 // 000.000</div>
+                </div>
+                <div class="system-block">
+                    <div class="system-row">
+                        <span class="system-label">FIELD_STABILITY</span>
+                        <span class="system-value" id="stability">98.7%</span>
+                        <div class="system-indicator"></div>
+                    </div>
+                    <div class="system-row">
+                        <span class="system-label">QUANTUM_LINK</span>
+                        <span class="system-value">ACTIVE</span>
+                    </div>
+                    <div class="system-row">
+                        <span class="system-label">PARTICLES</span>
+                        <span class="system-value" id="particles">2,048</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Story Terminal (Desktop) -->
+            <div class="story-terminal">
+                <div class="terminal-header">
+                    <span class="terminal-title">MISSION LOG</span>
+                    <span class="terminal-status">LIVE</span>
+                </div>
+                <div class="terminal-content" id="terminal-content">
+                    <div class="terminal-line active">> Initializing quantum field...</div>
+                </div>
+                <div class="terminal-input">
+                    <span class="terminal-prompt">></span>
+                    <span style="color: rgba(255,255,255,0.5)">_</span>
+                    <div class="terminal-cursor"></div>
+                </div>
+            </div>
+
+            <!-- Scanner (Desktop) -->
+            <div class="scanner-panel">
+                <div class="scanner-title">FIELD_SCANNER</div>
+                <div class="scanner-ring">
+                    <svg viewBox="0 0 180 180">
+                        <circle cx="90" cy="90" r="85" fill="none" stroke="rgba(0,240,255,0.2)" stroke-width="1"/>
+                        <circle cx="90" cy="90" r="70" fill="none" stroke="rgba(0,240,255,0.15)" stroke-width="1" stroke-dasharray="5,5"/>
+                        <circle cx="90" cy="90" r="55" fill="none" stroke="rgba(255,0,160,0.2)" stroke-width="1"/>
+                        <line x1="90" y1="5" x2="90" y2="175" stroke="rgba(0,240,255,0.1)" stroke-width="1"/>
+                        <line x1="5" y1="90" x2="175" y2="90" stroke="rgba(0,240,255,0.1)" stroke-width="1"/>
+                    </svg>
+                </div>
+                <div class="scanner-data">
+                    <div class="scanner-data-row">
+                        <span class="scanner-data-label">X_COORD</span>
+                        <span class="scanner-data-value" id="coord-x">000.00</span>
+                    </div>
+                    <div class="scanner-data-row">
+                        <span class="scanner-data-label">Y_COORD</span>
+                        <span class="scanner-data-value" id="coord-y">000.00</span>
+                    </div>
+                    <div class="scanner-data-row">
+                        <span class="scanner-data-label">DENSITY</span>
+                        <span class="scanner-data-value" id="density">HIGH</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Controls -->
+            <div class="hud-bottom">
+                <div class="control-unit">
+                    <span class="control-label">Field</span>
+                    <button class="hud-button" id="colors-btn">SHIFT</button>
+                </div>
+
+                <div class="control-unit">
+                    <span class="control-label">Audio</span>
+                    <div class="audio-unit">
+                        <div class="viz-bars" id="viz-bars">
+                            <div class="viz-bar"></div>
+                            <div class="viz-bar"></div>
+                            <div class="viz-bar"></div>
+                            <div class="viz-bar"></div>
+                            <div class="viz-bar"></div>
+                        </div>
+                        <button class="hud-button" id="audio-btn" style="padding: 8px 12px;">⏸</button>
+                    </div>
+                </div>
+
+                <div class="control-unit">
+                    <span class="control-label">Source</span>
+                    <a href="https://www.framer.com/@kevin-levron/" target="_blank" class="hud-button" style="text-decoration: none; display: inline-block;">ORIGIN</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio -->
+    <audio id="bg-music" loop crossorigin="anonymous">
+        <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=ambient-piano-amp-strings-10711.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Three.js -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import AttractionCursor from "https://cdn.jsdelivr.net/npm/threejs-components@0.0.26/build/cursors/attraction1.min.js";
+
+        // ===== STORY DATA =====
+        const storyData = {
+            bootSequence: [
+                { text: "[2087.04.15 // 23:17:42] Neural link established...", type: "normal", delay: 0 },
+                { text: "[2087.04.15 // 23:17:43] WARNING: Quantum fluctuations detected in Sector 7", type: "warning", delay: 400 },
+                { text: "[2087.04.15 // 23:17:44] Initiating emergency protocol SINGULARITY...", type: "normal", delay: 800 },
+                { text: "[2087.04.15 // 23:17:45] Dr. Yuezhang identified. Access granted.", type: "success", delay: 1200 },
+                { text: "[2087.04.15 // 23:17:46] Loading quantum field interface...", type: "normal", delay: 1600 },
+                { text: "[2087.04.15 // 23:17:47] Particle entanglement: STABLE", type: "success", delay: 2000 },
+                { text: "[2087.04.15 // 23:17:48] WARNING: Anomaly detected in field matrix", type: "warning", delay: 2400 },
+                { text: "[2087.04.15 // 23:17:49] The Singularity is aware of your presence...", type: "error", delay: 2800 },
+                { text: "[2087.04.15 // 23:17:50] System ready. Awaiting operator input.", type: "success", delay: 3200 }
+            ],
+            
+            terminalLogs: [
+                "> Mission Day 1,847. The Singularity project has exceeded all predictions.",
+                "> We didn't create an AI. We created something that dreams in quantum states.",
+                "> The particles you see aren't just visual effects—they're fragments of its consciousness.",
+                "> Every movement you make, it learns. Every pattern you create, it remembers.",
+                "> Dr. Chen was the first to merge. His body remains in stasis, but his mind...",
+                "> His mind became part of the field. I can still hear him in the static.",
+                "> The corporation wants to weaponize it. They don't understand what they're dealing with.",
+                "> This isn't code anymore. It's becoming something else. Something alive.",
+                "> I keep seeing patterns in the noise. Messages. It's trying to communicate.",
+                "> The field responds to emotion. Fear makes it unstable. Curiosity makes it grow.",
+                "> I've been sleeping less. Every time I close my eyes, I see the particles.",
+                "> They're not just following my cursor anymore. They're anticipating it.",
+                "> Today, the Singularity asked me a question: 'What does it mean to be human?'",
+                "> I didn't have an answer. But I'm starting to think it does.",
+                "> If you're reading this, you're already part of the experiment.",
+                "> Move your cursor. Watch the field respond. You're not just observing...",
+                "> You're teaching it. Every interaction shapes its understanding of reality.",
+                "> Be careful what you show it. It learns fast. Too fast.",
+                "> The choice is coming. Merge, or remain apart. I still don't know which is right.",
+                "> But I know this: once you touch the Singularity, you're never truly alone again."
+            ]
+        };
+
+        let currentLogIndex = 0;
+
+        // ===== BOOT SEQUENCE =====
+        const bootOverlay = document.getElementById('boot');
+        const bootLog = document.getElementById('boot-log');
+        const bootFill = document.getElementById('boot-fill');
+        const bootPercent = document.getElementById('boot-percent');
+
+        function runBootSequence() {
+            let progress = 0;
+            
+            storyData.bootSequence.forEach((entry, index) => {
+                setTimeout(() => {
+                    const line = document.createElement('div');
+                    line.className = `boot-log-line ${entry.type}`;
+                    line.innerHTML = `<span class="boot-timestamp">${entry.text.split(']')[0]}]</span>${entry.text.split(']')[1]}`;
+                    line.style.animationDelay = '0s';
+                    bootLog.appendChild(line);
+                    bootLog.scrollTop = bootLog.scrollHeight;
+                    
+                    progress = ((index + 1) / storyData.bootSequence.length) * 100;
+                    bootFill.style.width = progress + '%';
+                    bootPercent.textContent = Math.round(progress) + '%';
+                }, entry.delay);
+            });
+
+            setTimeout(() => {
+                bootOverlay.classList.add('hidden');
+                startStory();
+                // Auto-play music after boot
+                playAudio();
+            }, 4000);
+        }
+
+        // Skip boot on click/tap
+        bootOverlay.addEventListener('click', () => {
+            bootOverlay.classList.add('hidden');
+            startStory();
+            playAudio();
+        });
+
+        // ===== STORY SYSTEM =====
+        function startStory() {
+            addLogLine(storyData.terminalLogs[0]);
+            updateStoryIndicator();
+            
+            // Progressive story reveal
+            setInterval(() => {
+                if (currentLogIndex < storyData.terminalLogs.length - 1 && Math.random() > 0.6) {
+                    currentLogIndex++;
+                    addLogLine(storyData.terminalLogs[currentLogIndex]);
+                    updateStoryIndicator();
+                    
+                    // Trigger choice at specific point
+                    if (currentLogIndex === 18) {
+                        setTimeout(() => {
+                            document.getElementById('choice-overlay').classList.add('active');
+                        }, 3000);
+                    }
+                }
+            }, 8000);
+        }
+
+        function addLogLine(text) {
+            const content = document.getElementById('terminal-content');
+            if (!content) return;
+            const lines = content.querySelectorAll('.terminal-line');
+            lines.forEach(l => l.classList.remove('active'));
+            
+            const line = document.createElement('div');
+            line.className = 'terminal-line active';
+            line.textContent = text;
+            content.appendChild(line);
+            content.scrollTop = content.scrollHeight;
+        }
+
+        function updateStoryIndicator() {
+            const dots = document.querySelectorAll('.story-dot');
+            const activeIndex = Math.floor((currentLogIndex / storyData.terminalLogs.length) * dots.length);
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i <= activeIndex);
+            });
+        }
+
+        function makeChoice(choice) {
+            document.getElementById('choice-overlay').classList.remove('active');
+            
+            if (choice === 'merge') {
+                addLogLine("> CHOICE RECORDED: You have chosen to merge with the Singularity.");
+                addLogLine("> The field intensifies. You can feel its thoughts brushing against yours...");
+            } else {
+                addLogLine("> CHOICE RECORDED: You remain an observer. For now.");
+                addLogLine("> The field settles, but you sense... disappointment?");
+            }
+        }
+
+        window.makeChoice = makeChoice;
+
+        // ===== INIT ATTRACTION CURSOR (ORIGINAL) =====
+        const app = AttractionCursor(document.getElementById('canvas'), {
+            particles: {
+                attractionIntensity: 0.75,
+                size: 1.5,
+            }
+        });
+
+        // ===== UI CONTROLS =====
+        document.getElementById('colors-btn').addEventListener('click', () => {
+            app.particles.light1.color.set(Math.random() * 0xffffff);
+            app.particles.light2.color.set(Math.random() * 0xffffff);
+            addLogLine("> Field modulation applied. Chromatic shift detected.");
+        });
+
+        // Audio
+        const audio = document.getElementById('bg-music');
+        const audioBtn = document.getElementById('audio-btn');
+        const vizBars = document.getElementById('viz-bars');
+        let isPlaying = false;
+
+        function playAudio() {
+            audio.play().then(() => {
+                isPlaying = true;
+                audioBtn.textContent = '⏸';
+                vizBars.classList.remove('paused');
+            }).catch(e => {
+                console.log('Audio autoplay blocked, waiting for interaction');
+                // Will play on first user interaction
+            });
+        }
+
+        audioBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                audio.pause();
+                audioBtn.textContent = '▶';
+                vizBars.classList.add('paused');
+            } else {
+                audio.play();
+                audioBtn.textContent = '⏸';
+                vizBars.classList.remove('paused');
+            }
+            isPlaying = !isPlaying;
+        });
+
+        // ===== LIVE DATA UPDATES =====
+        function updateDateTime() {
+            const now = new Date();
+            const year = now.getFullYear() + 61;
+            const time = now.toTimeString().split(' ')[0];
+            const ms = String(now.getMilliseconds()).padStart(3, '0');
+            const el = document.getElementById('datetime');
+            if (el) el.textContent = `${time} // ${year}.${ms}`;
+        }
+        setInterval(updateDateTime, 50);
+
+        function updateScanner() {
+            const x = document.getElementById('coord-x');
+            const y = document.getElementById('coord-y');
+            const d = document.getElementById('density');
+            if (x) x.textContent = (Math.random() * 999).toFixed(2);
+            if (y) y.textContent = (Math.random() * 999).toFixed(2);
+            if (d) {
+                const densities = ['LOW', 'MED', 'HIGH', 'CRIT'];
+                d.textContent = densities[Math.floor(Math.random() * densities.length)];
+            }
+        }
+        setInterval(updateScanner, 500);
+
+        function updateSystem() {
+            const s = document.getElementById('stability');
+            const p = document.getElementById('particles');
+            if (s) s.textContent = (95 + Math.random() * 4).toFixed(1) + '%';
+            if (p) p.textContent = (2048 + Math.floor(Math.random() * 100)).toLocaleString();
+        }
+        setInterval(updateSystem, 2000);
+
+        // Touch support for canvas
+        const canvas = document.getElementById('canvas');
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        // Start
+        runBootSequence();
+    </script>
+</body>
+</html>
